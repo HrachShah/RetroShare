@@ -53,3 +53,4 @@ README: updated# Documentation
 
 - [RetroShare Docs](https://retrosharedocs.readthedocs.io/en/latest/)
 
+\n## Contributing\n\nPlease read the build scripts in build_scripts\/ for contribution guidelines.
