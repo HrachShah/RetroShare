@@ -53,3 +53,4 @@ Other Builds [RetroShare Downloads](https://retroshare.cc/downloads.html)
 
 - [RetroShare Docs](https://retrosharedocs.readthedocs.io/en/latest/)
 
+\n## Contributing\n\nPlease read the build scripts in build_scripts\/ for contribution guidelines.
