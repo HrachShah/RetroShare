@@ -55,16 +55,16 @@ QString misc::friendlyUnit(float val)
 
 QString misc::fingerPrintStyleSplit(const QString& in)
 {
-	QString rest = in ;
-	QString res ;
-
 	if(in.isNull())
 		return in ;
 
-	for(int i=0;i<in.length();i+=4)
-		res += rest.mid(i,4)+' ' ;
+	QString res;
+	for(int i=0; i<in.length(); i+=4)
+		res += in.midRef(i, 4).toString() + QLatin1Char(' ');
 
-	return res.left(res.length()-1) ;
+	if(!res.isEmpty())
+		res.chop(1);
+	return res;
 }
 
 bool misc::isPreviewable(QString extension)
