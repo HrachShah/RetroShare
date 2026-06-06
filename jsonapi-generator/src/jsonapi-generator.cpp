@@ -400,7 +400,12 @@ int main(int argc, char *argv[])
 				else templFilePath.append("/method-wrapper-template.cpp.tmpl");
 
 				QFile templFile(templFilePath);
-				templFile.open(QIODevice::ReadOnly);
+				if(!templFile.open(QIODevice::ReadOnly))
+				{
+					qWarning() << "Error opening template:" << templFilePath
+					           << "skipping wrapper generation for" << apiPath;
+					continue;
+				}
 				QString wrapperDef(templFile.readAll());
 
 				QMap<QString,QString>::iterator it;
