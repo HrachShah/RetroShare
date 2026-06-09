@@ -156,9 +156,26 @@ void FriendServer::handleClientPublish(const RsFriendServerClientPublishItem *it
         RsDbg() << "  Sending item..." ;
         mni->SendItem(encrypted_response_item);
     }
-    catch(std::exception& e)
+    catch(const std::runtime_error& e)
     {
         RsErr() << "ERROR: " << e.what() ;
+
+        RsFriendServerStatusItem *status_item = new RsFriendServerStatusItem;
+        status_item->status = RsFriendServerStatusItem::END_OF_TRANSMISSION;
+        status_item->PeerId(item->PeerId());
+        mni->SendItem(status_item);
+        return;
+    }
+    catch(const std::exception& e)
+    {
+        // The previous catch(std::runtime_error&) above handles every explicitly
+        // thrown std::runtime_error in handleClientPublish(); this catch(std::exception&)
+        // is a safety net for any other std-lib exceptions (e.g. std::bad_alloc from
+        // item allocation, std::length_error from serializer overflow) so we still send
+        // an end-of-transmission status item instead of crashing the worker. Rethrowing
+        // the truly fatal (non-std::exception) cases through the implicit catch (...)
+        // path is intentional.
+        RsErr() << "Unexpected std::exception while publishing: " << e.what() ;
 
         RsFriendServerStatusItem *status_item = new RsFriendServerStatusItem;
         status_item->status = RsFriendServerStatusItem::END_OF_TRANSMISSION;
@@ -307,9 +324,19 @@ bool FriendServer::handleIncomingClientData(const std::string& pgp_public_key_b6
         pid = shortInviteDetails.id;
         return true;
     }
-    catch (std::exception& e)
+    catch(const std::runtime_error& e)
     {
         RsErr() << "Exception while adding client data: " << e.what() ;
+        return false;
+    }
+    catch(const std::exception& e)
+    {
+        // Safety net: std::runtime_error is the only exception explicitly thrown
+        // inside the try block, but a peer item allocation can still throw
+        // std::bad_alloc and the certificate decoder can throw std::length_error
+        // on a malformed short invite. Treat both the same as a runtime error
+        // and drop the client.
+        RsErr() << "Unexpected std::exception while adding client data: " << e.what() ;
         return false;
     }
 }
