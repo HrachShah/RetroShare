@@ -156,9 +156,27 @@ void FriendServer::handleClientPublish(const RsFriendServerClientPublishItem *it
         RsDbg() << "  Sending item..." ;
         mni->SendItem(encrypted_response_item);
     }
-    catch(std::exception& e)
+    // The only thing the body of this try-block can throw is std::runtime_error
+    // (RsDbg/RsErr are noexcept streaming, mni->SendItem is a void call, the
+    // FsSerializer and RsTemporaryMemory are sized locally and their ctors
+    // don't throw). Catching std::runtime_error first lets us report the
+    // message without resorting to e.what() falling through from a more
+    // generic handler; std::exception is a safety net for std-lib
+    // exceptions (bad_alloc, etc.) that should still produce an end-of-
+    // transmission status item so the client doesn't hang waiting.
+    catch(const std::runtime_error& e)
     {
         RsErr() << "ERROR: " << e.what() ;
+
+        RsFriendServerStatusItem *status_item = new RsFriendServerStatusItem;
+        status_item->status = RsFriendServerStatusItem::END_OF_TRANSMISSION;
+        status_item->PeerId(item->PeerId());
+        mni->SendItem(status_item);
+        return;
+    }
+    catch(const std::exception& e)
+    {
+        RsErr() << "ERROR: unexpected " << typeid(e).name() << ": " << e.what() ;
 
         RsFriendServerStatusItem *status_item = new RsFriendServerStatusItem;
         status_item->status = RsFriendServerStatusItem::END_OF_TRANSMISSION;
@@ -307,9 +325,17 @@ bool FriendServer::handleIncomingClientData(const std::string& pgp_public_key_b6
         pid = shortInviteDetails.id;
         return true;
     }
-    catch (std::exception& e)
+    // Same reasoning as the catch in handleClientPublish: every throw
+    // inside this try block is std::runtime_error, but std::exception is
+    // kept as a safety net for std-lib exceptions.
+    catch(const std::runtime_error& e)
     {
         RsErr() << "Exception while adding client data: " << e.what() ;
+        return false;
+    }
+    catch(const std::exception& e)
+    {
+        RsErr() << "Exception while adding client data: unexpected " << typeid(e).name() << ": " << e.what() ;
         return false;
     }
 }
