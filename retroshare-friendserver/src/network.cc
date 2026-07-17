@@ -50,8 +50,9 @@ FsNetworkInterface::FsNetworkInterface(const std::string& listening_address,uint
 {
     RS_STACK_MUTEX(mFsNiMtx);
 
-    mClintListn = 0;
     mClintListn = socket(AF_INET, SOCK_STREAM, 0); // creating socket
+    if(mClintListn < 0)
+        throw std::runtime_error("Cannot create listening socket: errno=" + std::to_string(errno));
 
     int flags=1;
     setsockopt(mClintListn,SOL_SOCKET,TCP_NODELAY,(char*)&flags,sizeof(flags));
@@ -78,14 +79,18 @@ FsNetworkInterface::FsNetworkInterface(const std::string& listening_address,uint
 
     if(bind(mClintListn, (struct sockaddr*)&ipOfServer , sizeof(ipOfServer)) < 0)
     {
-        RsErr() << "Error while binding: errno=" << errno ;
-        return;
+        const int bind_errno = errno;
+        close(mClintListn);
+        mClintListn = -1;
+        throw std::runtime_error("Cannot bind listening socket: errno=" + std::to_string(bind_errno));
     }
 
     if(listen(mClintListn , 40) < 0)
     {
-        RsErr() << "Error while calling listen: errno=" << errno ;
-        return;
+        const int listen_errno = errno;
+        close(mClintListn);
+        mClintListn = -1;
+        throw std::runtime_error("Cannot listen on socket: errno=" + std::to_string(listen_errno));
     }
 
     RsDbg() << "Network interface now listening for TCP on " << sockaddr_storage_tostring( *(sockaddr_storage*)&ipOfServer) ;
@@ -100,8 +105,11 @@ FsNetworkInterface::~FsNetworkInterface()
         std::cerr << "Releasing socket " << it.second.socket << std::endl;
         close(it.second.socket);
     }
-    std::cerr << "Releasing listening socket " << mClintListn << std::endl;
-    close(mClintListn);
+    if(mClintListn >= 0)
+    {
+        std::cerr << "Releasing listening socket " << mClintListn << std::endl;
+        close(mClintListn);
+    }
 }
 void FsNetworkInterface::threadTick()
 {
